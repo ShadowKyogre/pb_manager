@@ -1,21 +1,33 @@
 import requests
+#import dateutil.parser as dtparser
+#eventually we'll need this for informing user of date expiry?
+
+from collections import OrderedDict
+from configparser import ConfigParser
 import csv
 import atexit
 import sys
 import argparse
 import os
 from datetime import datetime
-#import dateutil.parser as dtparser
-#eventually we'll need this for informing user of date expiry?
 
-TSH_URL="https://transfer.sh"
-FMT_URL="https://ptpb.pw/{}"
+
+if os.name == 'nt':
+	CONFIG_PATH = os.path.join(os.environ['APPDATA'], 'ShadowKyogre', 'pb_manager.ini')
+else:
+	CONFIG_PATH = os.path.join(os.path.expanduser('~'), '.config', 
+                           'pb_manager', 'pb_manager.ini')
+CFG = ConfigParser()
+CFG.read(CONFIG_PATH)
+
+TSH_URL=CFG.get('DEFAULT', 'TSH_URL', fallback="https://transfer.sh")
+FMT_URL=CFG.get('DEFAULT', 'FMT_URL', fallback="https://ptpb.pw/{}")
 ALIAS_URL=FMT_URL.format("u")
 PASTE_URL=FMT_URL.format("")
-DB={}
-TDB={}
-PTPB_DB_STORE='ptpb.tsv'
-TSH_DB_STORE='tsh.tsv'
+DB=OrderedDict()
+TDB=OrderedDict()
+PTPB_DB_STORE=CFG.get('DEFAULT', 'PTPB_DB_STORE', fallback='ptpb.tsv')
+TSH_DB_STORE=CFG.get('DEFAULT', 'TSH_DB_STORE', fallback='tsh.tsv')
 
 def tsh_paste(*args, same_link=False):
 	mfiles = []
@@ -23,11 +35,12 @@ def tsh_paste(*args, same_link=False):
 		if same_link:
 			mfiles.append(('filedata', (os.path.basename(f), open(f, 'rb'))))
 		else:
-			fpayload={'filedata': open(f, 'rb')}
+			fpayload = {'filedata': open(f, 'rb')}
 			r = requests.post(TSH_URL, files=fpayload)
 			url = r.content.decode('utf-8').strip()
 			dt = datetime.now().isoformat()
 			TDB[f]=[url, dt]
+			print("{}\t{}".format(f, url))
 	if len(mfiles) > 0:
 		r = requests.post(TSH_URL, files=mfiles)
 		data = r.content.decode('utf-8').splitlines()
@@ -35,6 +48,7 @@ def tsh_paste(*args, same_link=False):
 		for i in range(len(data)):
 			url = data[i].strip()
 			TDB[args[i]]=[url, dt]
+			print("{}\t{}".format(args[i], url))
 
 def pb_paste(*args, alias=False, private=False):
 	for f in args:
@@ -99,16 +113,17 @@ if os.path.exists(PTPB_DB_STORE):
 	with open(PTPB_DB_STORE) as tsvfile:
 		reader = csv.reader(tsvfile, delimiter='\t')
 		for row in reader:
+			if len(row) == 0: continue
 			DB[row[0]]=[row[1], row[2], row[3]]
 
 if os.path.exists(TSH_DB_STORE):
 	with open(TSH_DB_STORE) as tsvfile:
 		reader = csv.reader(tsvfile, delimiter='\t')
 		for row in reader:
+			if len(row) == 0: continue
 			TDB[row[0]]=[row[1], row[2]]
 
 if __name__ == "__main__":
-
 	def upload(args):
 		pb_paste(*args.fnames, alias=args.alias, private=args.private)
 
@@ -138,32 +153,30 @@ if __name__ == "__main__":
 	parser_upload.add_argument('--private', action='store_true')
 	parser_upload.set_defaults(func=upload)
 	parser_upload.add_argument('fnames', metavar='N', type=str, nargs='+',
-						help='Files to put on ptpb.pw')
+	                           help='Files to put on ptpb.pw')
 
 
 	parser_tupload = sparsers.add_parser('tupload')
 	parser_tupload.add_argument('--same-link', action='store_true')
 	parser_tupload.add_argument('fnames', metavar='N', type=str, nargs='+',
-						help='Files to put on ptpb.pw')
+	                            help='Files to put on ptpb.pw')
 	parser_tupload.set_defaults(func=tupload)
 
 	parser_update = sparsers.add_parser('update')
 	parser_update.add_argument('fnames', metavar='N', type=str, nargs='+',
-						help='Files to put on ptpb.pw')
+	                           help='Files to put on ptpb.pw')
 	parser_update.set_defaults(func=update)
 
 	parser_delete = sparsers.add_parser('delete')
 	parser_delete.add_argument('fnames', metavar='N', type=str, nargs='+',
-						help='Files to put on ptpb.pw')
+	                           help='Files to put on ptpb.pw')
 	parser_delete.set_defaults(func=delete)
 
 	parser_urls = sparsers.add_parser('urls')
 	parser_urls.add_argument('fnames', metavar='N', type=str, nargs='+',
-						help='Files to put on ptpb.pw')
+	                         help='Files to put on ptpb.pw')
 	parser_urls.set_defaults(func=urls)
 
-	#parser.add_argument('--action', type=str, choices=['upload', 'tupload', 
-	#					'update','delete','url'], default='upload')
 	atexit.register(pb_db_write)
 	atexit.register(tsh_db_write)
 	args = parser.parse_args(sys.argv[1:])
