@@ -85,8 +85,8 @@ def pb_update(*args):
 			if DB[f][2] == 1:
 				data = r.content.decode('utf-8').splitlines()
 				url = data[0].replace(' updated.','').strip()
-				DB[f][1] = url
-				print('{} updated, new url'.format(DB[f][0], DB[f][1]))
+				print('{} updated, new url: {}'.format(DB[f][0], url))
+				DB[f][0] = url
 			else:
 				print('{} updated'.format(DB[f][0]))
 
@@ -117,7 +117,7 @@ if os.path.exists(PTPB_DB_STORE):
 		reader = csv.reader(tsvfile, delimiter='\t')
 		for row in reader:
 			if len(row) == 0: continue
-			DB[row[0]]=[row[1], row[2], row[3]]
+			DB[row[0]]=[row[1], row[2], int(row[3])]
 
 if os.path.exists(TSH_DB_STORE):
 	with open(TSH_DB_STORE) as tsvfile:
@@ -154,10 +154,9 @@ if __name__ == "__main__":
 	parser_upload = sparsers.add_parser('upload')
 	parser_upload.add_argument('--alias', action='store_true')
 	parser_upload.add_argument('--private', action='store_true')
-	parser_upload.set_defaults(func=upload)
 	parser_upload.add_argument('fnames', metavar='N', type=str, nargs='+',
 	                           help='Files to put on ptpb.pw')
-
+	parser_upload.set_defaults(func=upload)
 
 	parser_tupload = sparsers.add_parser('tupload')
 	parser_tupload.add_argument('--same-link', action='store_true')
