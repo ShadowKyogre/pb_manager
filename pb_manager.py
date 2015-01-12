@@ -52,6 +52,9 @@ def tsh_paste(*args, same_link=False):
 
 def pb_paste(*args, alias=False, private=False):
 	for f in args:
+		if f in DB.keys():
+			print("Skipping", f, "to avoid redacting UUID")
+			continue
 		if alias:
 			payload = {'c':f}
 			r = requests.post(ALIAS_URL, data=payload, allow_redirects=False)
