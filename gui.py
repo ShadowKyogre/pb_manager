@@ -9,16 +9,70 @@ from pb_manager import DB, TDB, tsh_paste, pb_paste, pb_update, \
 class PBManager(QtGui.QMainWindow):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
-		tshtv = QtGui.QTreeView(self)
-		tshtv.setModel(DBTableModel(TDB))
+		self.tshtv = UrlDropPlace(self)
+		self.tshtv.setModel(DBTableModel(TDB))
+		self.tshtv.setDragDropMode(QtGui.QAbstractItemView.DropOnly)
+		self.tshtv.setAcceptDrops(True)
 
-		ptpbtv = QtGui.QTreeView(self)
-		ptpbtv.setModel(DBTableModel(DB))
+		self.ptpbtv = UrlDropPlace(self)
+		self.ptpbtv.setModel(DBTableModel(DB))
+		self.ptpbtv.setDragDropMode(QtGui.QAbstractItemView.DropOnly)
+		self.ptpbtv.setAcceptDrops(True)
+
+		self.ptpbtv.dropped.connect(self.ptpb_paste)
+		self.tshtv.dropped.connect(self.tsh_paste)
 
 		tabview = QtGui.QTabWidget(self)
-		tabview.addTab(ptpbtv, "ptpb.pw instance")
-		tabview.addTab(tshtv, "transfer.sh instance")
+		tabview.addTab(self.ptpbtv, "ptpb.pw instance")
+		tabview.addTab(self.tshtv, "transfer.sh instance")
 		self.setCentralWidget(tabview)
+
+	def ptpb_paste(self, urls):
+		attop=QtCore.QModelIndex()
+		lastrow=self.ptpbtv.model().rowCount(attop)+1
+		lastnewrow=len(urls)+lastrow
+		self.ptpbtv.model().beginInsertRows(attop, lastrow, lastnewrow)
+		for url in urls:
+			if url.toLocalFile() == "":
+				pb_paste(url.toString(), alias=True)
+			else:
+				pb_paste(url.toLocalFile())
+		self.ptpbtv.model().endInsertRows()
+		#print(urls)
+
+	def tsh_paste(self, urls):
+		attop=QtCore.QModelIndex()
+		lastrow=self.tshtv.model().rowCount(attop)+1
+		lastnewrow=len(urls)+lastrow
+		self.tshtv.model().beginInsertRows(attop, lastrow, lastnewrow)
+		batch_list=[]
+		for url in urls:
+			if url.toLocalFile() != "":
+				batch_list.append(url.toLocalFile())
+		tsh_paste(*batch_list, same_link=True)
+		self.tshtv.model().endInsertRows()
+
+#http://stackoverflow.com/questions/4151637/pyqt4-drag-and-drop-files-into-qlistwidget
+class UrlDropPlace(QtGui.QTreeView):
+	dropped = QtCore.pyqtSignal(list)
+	def dragEnterEvent(self, event):
+		if event.mimeData().hasUrls():
+			event.accept()
+		else:
+			event.ignore()
+	def dragMoveEvent(self, event):
+		if event.mimeData().hasUrls():
+			event.setDropAction(QtCore.Qt.CopyAction)
+			event.accept()
+		else:
+			event.ignore()
+	def dropEvent(self, event):
+		if event.mimeData().hasUrls():
+			event.setDropAction(QtCore.Qt.CopyAction)
+			self.dropped.emit(event.mimeData().urls())
+			event.accept()
+		else:
+			event.ignore()
 
 class DBTableModel(QtCore.QAbstractTableModel):
 	def __init__(self, data, parent=None):
@@ -28,6 +82,7 @@ class DBTableModel(QtCore.QAbstractTableModel):
 	def rowCount(self, parent):
 		if parent.isValid():
 			return 0
+		#print(len(self.data.keys()))
 		return len(self.data.keys())
 
 	def columnCount(self, parent):
