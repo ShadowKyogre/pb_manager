@@ -140,12 +140,24 @@ if __name__ == "__main__":
 		pb_delete(*args.fnames)
 
 	def urls(args):
+		if len(args.fnames) == 0:
+			for k in DB.keys():
+				print(DB[k][0])
+			for k in TDB.keys():
+				print(TDB[k][0])
+			return
+
 		for f in args.fnames:
+			have_it = False
 			if f in DB.keys():
 				print(DB[f][0])
-			elif f in TDB.keys():
+				have_it = True
+
+			if f in TDB.keys():
 				print(TDB[f][0])
-			else:
+				have_it = True
+
+			if not have_it:
 				print("Huh, we don't have one...")
 
 	parser = argparse.ArgumentParser(description='Manage your ptpb.pw and transfer.sh pastes')
@@ -175,7 +187,7 @@ if __name__ == "__main__":
 	parser_delete.set_defaults(func=delete)
 
 	parser_urls = sparsers.add_parser('urls')
-	parser_urls.add_argument('fnames', metavar='N', type=str, nargs='+',
+	parser_urls.add_argument('fnames', metavar='N', type=str, nargs='*',
 	                         help='Files to put on ptpb.pw')
 	parser_urls.set_defaults(func=urls)
 
