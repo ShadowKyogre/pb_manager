@@ -27,17 +27,28 @@ class PBManager(QtGui.QMainWindow):
 		tabview.addTab(self.tshtv, "transfer.sh instance")
 		self.setCentralWidget(tabview)
 
+		statusbar = self.statusBar()
+		self.progress = QtGui.QProgressBar()
+		self.progress.setFormat("%v / %m files uploaded")
+		statusbar.addPermanentWidget(self.progress)
+
 	def ptpb_paste(self, urls):
 		attop=QtCore.QModelIndex()
 		lastrow=self.ptpbtv.model().rowCount(attop)+1
 		lastnewrow=len(urls)+lastrow
 		self.ptpbtv.model().beginInsertRows(attop, lastrow, lastnewrow)
+		i = 0
+		self.progress.setRange(0, lastnewrow-lastrow)
+		self.progress.setValue(i)
 		for url in urls:
 			if url.toLocalFile() == "":
 				pb_paste(url.toString(), alias=True)
 			else:
 				pb_paste(url.toLocalFile())
+			i+=1
+			self.progress.setValue(i)
 		self.ptpbtv.model().endInsertRows()
+		self.progress.reset()
 		#print(urls)
 
 	def tsh_paste(self, urls):
@@ -46,10 +57,14 @@ class PBManager(QtGui.QMainWindow):
 		lastnewrow=len(urls)+lastrow
 		self.tshtv.model().beginInsertRows(attop, lastrow, lastnewrow)
 		batch_list=[]
+		self.progress.setRange(0, lastnewrow-lastrow)
+		self.progress.setValue(0)
 		for url in urls:
 			if url.toLocalFile() != "":
 				batch_list.append(url.toLocalFile())
 		tsh_paste(*batch_list, same_link=True)
+		self.progress.setValue(self.progress.maximum())
+		self.progress.reset()
 		self.tshtv.model().endInsertRows()
 
 #http://stackoverflow.com/questions/4151637/pyqt4-drag-and-drop-files-into-qlistwidget
