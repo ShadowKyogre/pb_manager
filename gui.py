@@ -10,12 +10,12 @@ class PBManager(QtGui.QMainWindow):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.tshtv = UrlDropPlace(self)
-		self.tshtv.setModel(DBTableModel(TDB))
+		self.tshtv.setModel(TSHModel(TDB))
 		self.tshtv.setDragDropMode(QtGui.QAbstractItemView.DropOnly)
 		self.tshtv.setAcceptDrops(True)
 
 		self.ptpbtv = UrlDropPlace(self)
-		self.ptpbtv.setModel(DBTableModel(DB))
+		self.ptpbtv.setModel(PTPBModel(DB))
 		self.ptpbtv.setDragDropMode(QtGui.QAbstractItemView.DropOnly)
 		self.ptpbtv.setAcceptDrops(True)
 
@@ -31,6 +31,26 @@ class PBManager(QtGui.QMainWindow):
 		self.progress = QtGui.QProgressBar()
 		self.progress.setFormat("%v / %m files uploaded")
 		statusbar.addPermanentWidget(self.progress)
+
+	def eventFilter(self, obj, evt):
+		if evt.type() == QtCore.QEvent.KeyPress:
+			if evt.key() == QtCore.Qt.Key_Return:
+				if obj == self.ptpbtv:
+					items = self.ptpbtv.selectedIndexes()
+					end = len(items)
+					for i in range(0, end, 4):
+						print(items[i].data(QtCore.Qt.DisplayRole))
+						pb_update(items[i].data(QtCore.Qt.DisplayRole))
+				elif obj == self.tshtv:
+					items = self.tshtv.selectedIndexes()
+					end = len(items)
+					batch_items = []
+					for i in range(0, end, 3):
+						print(items[i].data(QtCore.Qt.DisplayRole))
+						#batch_items.append(items[i].QtCore.Qt.DisplayRole)
+					#tsh_paste(*batch_items, same_link=True)
+			return super().eventFilter(obj, evt)
+		return super().eventFilter(obj, evt)
 
 	def ptpb_paste(self, urls):
 		attop=QtCore.QModelIndex()
@@ -70,6 +90,9 @@ class PBManager(QtGui.QMainWindow):
 #http://stackoverflow.com/questions/4151637/pyqt4-drag-and-drop-files-into-qlistwidget
 class UrlDropPlace(QtGui.QTreeView):
 	dropped = QtCore.pyqtSignal(list)
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
 	def dragEnterEvent(self, event):
 		if event.mimeData().hasUrls():
 			event.accept()
@@ -115,6 +138,27 @@ class DBTableModel(QtCore.QAbstractTableModel):
 			else:
 				return self.data[key][index.column()-1]
 
+class PTPBModel(DBTableModel):
+	HEADERS=["Filename/URL", "Public URL", "UUID", "Private?"]
+	def headerData(self, col, orientation, role):
+		if orientation == QtCore.Qt.Horizontal and role == QtCore.Qt.DisplayRole:
+			try:
+				return self.HEADERS[col]
+			except IndexError:
+					pass
+		return super().headerData(col, orientation, role)
+
+class TSHModel(DBTableModel):
+	HEADERS=["Filename/URL", "Public URL", "Post Date"]
+	def headerData(self, col, orientation, role):
+		#print(orientation, role)
+		if orientation == QtCore.Qt.Horizontal and role == QtCore.Qt.DisplayRole:
+			try:
+				return self.HEADERS[col]
+			except IndexError:
+				pass
+		return super().headerData(col, orientation, role)
+
 if __name__ == "__main__":
 	global app
 
@@ -127,4 +171,6 @@ if __name__ == "__main__":
 
 	pbm = PBManager()
 	pbm.show()
+
+	app.installEventFilter(pbm)
 	sys.exit(app.exec_())
