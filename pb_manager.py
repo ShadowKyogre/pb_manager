@@ -68,7 +68,7 @@ def pb_paste(*args, alias=False, private=False):
 		data = r.content.decode('utf-8').splitlines()
 		url = data[0].replace('url: ','').strip()
 		if alias:
-			uuid = "redacted"
+			uuid = "<redacted>"
 		else:
 			uuid = data[1].replace('uuid: ', '').strip()
 		DB[f]=[url, uuid, int(private)]
@@ -95,7 +95,7 @@ def pb_delete(*args):
 		if f not in DB.keys():
 			print("Huh, we don't have one...")
 			continue
-		if DB[f][1] != 'redacted':
+		if DB[f][1] != '<redacted>':
 			requests.delete(FMT_URL.format(DB[f][1]))
 			print('{} deleted, removing obsolete data'.format(DB[f][0]))
 			del DB[f]
