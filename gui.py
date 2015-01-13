@@ -72,9 +72,9 @@ class PBManager(QtGui.QMainWindow):
 		layout.addWidget(buttonbox)
 		result = dialog.exec()
 		if result == QtGui.QDialog.Accepted:
-			items = [QtCore.QUrl(l) for l in te.toPlainText() ]
+			items = [QtCore.QUrl(l) for l in te.toPlainText().splitlines() ]
 			print(items)
-			#self.ptpb_paste(items)
+			self.ptpb_paste(items)
 
 	def new_link(self):
 		if self.tabview.currentWidget() == self.ptpbtv:
