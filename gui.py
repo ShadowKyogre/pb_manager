@@ -5,7 +5,7 @@ import atexit
 import sys
 
 from pb_manager import DB, TDB, tsh_paste, pb_paste, pb_update, \
-                       pb_delete, pb_db_write, tsh_db_write
+                       pb_delete, pb_db_write, tsh_db_write, CFG
 
 class PBManager(QtGui.QMainWindow):
 	def __init__(self, *args, **kwargs):
@@ -23,28 +23,103 @@ class PBManager(QtGui.QMainWindow):
 		self.ptpbtv.dropped.connect(self.ptpb_paste)
 		self.tshtv.dropped.connect(self.tsh_paste)
 
-		tabview = QtGui.QTabWidget(self)
-		tabview.addTab(self.ptpbtv, "ptpb.pw instance")
-		tabview.addTab(self.tshtv, "transfer.sh instance")
-		self.setCentralWidget(tabview)
+		self.tabview = QtGui.QTabWidget(self)
+		self.tabview.addTab(self.ptpbtv, self.tr("ptpb.pw instance"))
+		self.tabview.addTab(self.tshtv, self.tr("transfer.sh instance"))
+		self.setCentralWidget(self.tabview)
 
 		statusbar = self.statusBar()
 		self.progress = QtGui.QProgressBar()
-		self.progress.setFormat("%v / %m files uploaded")
+		self.progress.setFormat(self.tr("%v / %m files uploaded"))
 		statusbar.addPermanentWidget(self.progress)
+
+		self.opsbar = self.addToolBar(self.tr("Main"))
+		action = self.opsbar.addAction(QtGui.QIcon.fromTheme("document-new"), 
+		                               self.tr("New link(s)"))
+		action.triggered.connect(self.new_link)
+
+		action = self.opsbar.addAction(QtGui.QIcon.fromTheme("insert-link"), 
+		                               self.tr("New ptpb.pw alias(es)"))
+		action.triggered.connect(self.new_alias)
+
+		action = self.opsbar.addAction(QtGui.QIcon.fromTheme("edit-delete"),
+		                               self.tr("Delete link(s)"))
+		action.triggered.connect(self.delete_link)
+
+		action = self.opsbar.addAction(QtGui.QIcon.fromTheme("view-refresh"),
+		                               self.tr("Update link(s)"))
+		action.triggered.connect(self.update_link)
+		orientation = CFG.get('GUI', 'TB_ORIENTATION', fallback='top')
+
+		if orientation == 'right':
+			self.addToolBar(QtCore.Qt.RightToolBarArea, self.opsbar)
+		elif orientation == 'left':
+			self.addToolBar(QtCore.Qt.LeftToolBarArea, self.opsbar)
+		elif orientation == 'bottom':
+			self.addTollBar(QtCore.Qt.BottomToolBarArea, self.opsbar)
+		else:
+			pass
+
+	def new_alias(self):
+		dialog = QtGui.QDialog()
+		dialog.setWindowTitle(self.tr("Links to alias"))
+		layout = QtGui.QVBoxLayout(dialog)
+		te = QtGui.QPlainTextEdit(dialog)
+		layout.addWidget(te)
+		buttonbox = QtGui.QDialogButtonBox(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
+		buttonbox.accepted.connect(dialog.accept)
+		buttonbox.rejected.connect(dialog.reject)
+		layout.addWidget(buttonbox)
+		result = dialog.exec()
+		if result == QtGui.QDialog.Accepted:
+			items = [QtCore.QUrl(l) for l in te.toPlainText() ]
+			print(items)
+			#self.ptpb_paste(items)
+
+	def new_link(self):
+		if self.tabview.currentWidget() == self.ptpbtv:
+			files = QtGui.QFileDialog.getOpenFileNames(parent=self, 
+			                                           caption=self.tr("Files to publicize"))
+			items = [QtCore.QUrl(f) for f in files]
+			print(items)
+			result = QtGui.QMessageBox.question(self, self.tr("Public/Private?"), 
+			                                    self.tr(("Are the files you are pasting"
+			                                             " public or private?")), 
+			                                    buttons=QtGui.QMessageBox.Yes | \
+			                                    QtGui.QMessageBox.No | \
+			                                    QtGui.QMessageBox.Cancel)
+			if result == QtGui.QMessageBox.Yes:
+				self.ptpb_paste(items, private=True)
+			elif result == QtGui.QMessageBox.No:
+				self.ptpb_paste(items, private=False)
+			else:
+				pass
+
+		elif self.tabview.currentWidget() == self.tshtv:
+			files = QtGui.QFileDialog.getOpenFileNames(parent=self, 
+			                                             caption=self.tr("Files to publicize"))
+			items = [QtCore.QUrl(f) for f in files]
+			print(items)
+
+	def delete_link(self):
+		if self.tabview.currentWidget() == self.tshtv:
+			self.tsh_delete()
+		elif self.tabview.currentWidget() == self.ptpbtv:
+			self.ptpb_delete()
+
+	def update_link(self):
+		if self.tabview.currentWidget() == self.tshtv:
+			self.tsh_update()
+		elif self.tabview.currentWidget() == self.ptpbtv:
+			self.ptpb_update()
 
 	def eventFilter(self, obj, evt):
 		if evt.type() == QtCore.QEvent.KeyPress:
 			if evt.key() == QtCore.Qt.Key_Return:
 				if obj == self.ptpbtv:
-					items = self.ptpbtv.selectedIndexes()[::4]
-					for idx in items:
-						print(idx.data(QtCore.Qt.DisplayRole))
-						pb_update(idx.data(QtCore.Qt.DisplayRole))
+					self.ptpb_update()
 				elif obj == self.tshtv:
-					items = self.tshtv.selectedIndexes()[::3]
-					batch_items = [idx.data(QtCore.Qt.DisplayRole) for idx in items]
-					tsh_paste(*batch_items, same_link=True)
+					self.tsh_update()
 			elif evt.key() == QtCore.Qt.Key_Delete:
 				if obj == self.ptpbtv:
 					self.ptpb_delete()
@@ -53,8 +128,19 @@ class PBManager(QtGui.QMainWindow):
 			return super().eventFilter(obj, evt)
 		return super().eventFilter(obj, evt)
 
+	def ptpb_update(self):
+		items = self.ptpbtv.selectedIndexes()[::4]
+		for idx in items:
+			print(idx.data(QtCore.Qt.DisplayRole))
+			pb_update(idx.data(QtCore.Qt.DisplayRole))
+
+	def tsh_update(self):
+		items = self.tshtv.selectedIndexes()[::3]
+		batch_items = [idx.data(QtCore.Qt.DisplayRole) for idx in items]
+		tsh_paste(*batch_items, same_link=True)
+
 	def tsh_delete(self):
-		attop=QtCore.QModelIndex()
+		attop = QtCore.QModelIndex()
 		items = self.tshtv.selectedIndexes()[::3]
 		for k, g in groupby(enumerate(items), key=lambda x: x[0]-x[1].row()):
 			conseg_grp = list(g)
@@ -76,7 +162,7 @@ class PBManager(QtGui.QMainWindow):
 			             for iidx in conseg_grp ])
 			self.ptpbtv.model().endRemoveRows()
 
-	def ptpb_paste(self, urls):
+	def ptpb_paste(self, urls, private=False):
 		attop=QtCore.QModelIndex()
 		lastrow=self.ptpbtv.model().rowCount(attop)+1
 		lastnewrow=len(urls)+lastrow
@@ -88,7 +174,7 @@ class PBManager(QtGui.QMainWindow):
 			if url.toLocalFile() == "":
 				pb_paste(url.toString(), alias=True)
 			else:
-				pb_paste(url.toLocalFile())
+				pb_paste(url.toLocalFile(), private=private)
 			i+=1
 			self.progress.setValue(i)
 		self.ptpbtv.model().endInsertRows()
@@ -190,6 +276,9 @@ if __name__ == "__main__":
 	atexit.register(tsh_db_write)
 
 	app = QtGui.QApplication(sys.argv)
+	QtGui.QIcon.setThemeName(CFG.get('GUI', 'ICON_THEME', 
+	                                 fallback=QtGui.QIcon.themeName())
+	                        )
 	app.setApplicationName("pb_manager")
 	app.setApplicationVersion("0.1")
 
