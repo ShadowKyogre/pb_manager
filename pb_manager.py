@@ -16,7 +16,7 @@ if os.name == 'nt':
 	CONFIG_PATH = os.path.join(os.environ['APPDATA'], 'ShadowKyogre', 'pb_manager.ini')
 else:
 	CONFIG_PATH = os.path.join(os.path.expanduser('~'), '.config', 
-                           'pb_manager', 'pb_manager.ini')
+                           'ShadowKyogre', 'pb_manager.ini')
 CFG = ConfigParser()
 CFG.read(CONFIG_PATH)
 
