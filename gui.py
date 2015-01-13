@@ -3,6 +3,7 @@ from PyQt4 import QtCore, QtGui
 from itertools import groupby
 import atexit
 import sys
+import os
 
 from pb_manager import DB, TDB, tsh_paste, pb_paste, pb_update, \
                        pb_delete, pb_db_write, tsh_db_write, CFG
@@ -276,9 +277,15 @@ if __name__ == "__main__":
 	atexit.register(tsh_db_write)
 
 	app = QtGui.QApplication(sys.argv)
+	if os.name == 'nt':
+		QtGui.QIcon.setThemeSearchPaths(['/icons'])
 	QtGui.QIcon.setThemeName(CFG.get('GUI', 'ICON_THEME', 
 	                                 fallback=QtGui.QIcon.themeName())
 	                        )
+	print(CFG.get('GUI', 'ICON_THEME', 
+	              fallback=QtGui.QIcon.themeName())
+             )
+	print(QtGui.QIcon.themeName())
 	app.setApplicationName("pb_manager")
 	app.setApplicationVersion("0.1")
 
