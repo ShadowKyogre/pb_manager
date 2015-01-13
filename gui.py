@@ -1,5 +1,6 @@
 from PyQt4 import QtCore, QtGui
 
+from itertools import groupby
 import atexit
 import sys
 
@@ -36,21 +37,44 @@ class PBManager(QtGui.QMainWindow):
 		if evt.type() == QtCore.QEvent.KeyPress:
 			if evt.key() == QtCore.Qt.Key_Return:
 				if obj == self.ptpbtv:
-					items = self.ptpbtv.selectedIndexes()
-					end = len(items)
-					for i in range(0, end, 4):
-						print(items[i].data(QtCore.Qt.DisplayRole))
-						pb_update(items[i].data(QtCore.Qt.DisplayRole))
+					items = self.ptpbtv.selectedIndexes()[::4]
+					for idx in items:
+						print(idx.data(QtCore.Qt.DisplayRole))
+						pb_update(idx.data(QtCore.Qt.DisplayRole))
 				elif obj == self.tshtv:
-					items = self.tshtv.selectedIndexes()
-					end = len(items)
-					batch_items = []
-					for i in range(0, end, 3):
-						print(items[i].data(QtCore.Qt.DisplayRole))
-						#batch_items.append(items[i].QtCore.Qt.DisplayRole)
-					#tsh_paste(*batch_items, same_link=True)
+					items = self.tshtv.selectedIndexes()[::3]
+					batch_items = [idx.data(QtCore.Qt.DisplayRole) for idx in items]
+					tsh_paste(*batch_items, same_link=True)
+			elif evt.key() == QtCore.Qt.Key_Delete:
+				if obj == self.ptpbtv:
+					self.ptpb_delete()
+				elif obj == self.tshtv:
+					self.tsh_delete()
 			return super().eventFilter(obj, evt)
 		return super().eventFilter(obj, evt)
+
+	def tsh_delete(self):
+		attop=QtCore.QModelIndex()
+		items = self.tshtv.selectedIndexes()[::3]
+		for k, g in groupby(enumerate(items), key=lambda x: x[0]-x[1].row()):
+			conseg_grp = list(g)
+			self.tshtv.model().beginRemoveRows(attop, conseg_grp[0][1].row(), 
+						                       conseg_grp[-1][1].row())
+			for item in conseg_grp:
+				del TDB[item[1].data(QtCore.Qt.DisplayRole)]
+			self.tshtv.model().endRemoveRows()
+
+	def ptpb_delete(self):
+		attop=QtCore.QModelIndex()
+		items = self.ptpbtv.selectedIndexes()[::4]
+		#http://stackoverflow.com/questions/2361945/detecting-consecutive-integers-in-a-list
+		for k, g in groupby(enumerate(items), key=lambda x: x[0]-x[1].row()):
+			conseg_grp = list(g)
+			self.ptpbtv.model().beginRemoveRows(attop, conseg_grp[0][1].row(), 
+			                                    conseg_grp[-1][1].row())
+			pb_delete(*[ iidx[1].data(QtCore.Qt.DisplayRole) \
+			             for iidx in conseg_grp ])
+			self.ptpbtv.model().endRemoveRows()
 
 	def ptpb_paste(self, urls):
 		attop=QtCore.QModelIndex()
