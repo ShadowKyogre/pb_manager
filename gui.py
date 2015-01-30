@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from PyQt4 import QtCore, QtGui
 
 from itertools import groupby

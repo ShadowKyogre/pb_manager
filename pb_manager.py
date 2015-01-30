@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import requests
 #import dateutil.parser as dtparser
 #eventually we'll need this for informing user of date expiry?
