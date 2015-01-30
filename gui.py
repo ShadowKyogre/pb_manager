@@ -85,7 +85,7 @@ class PBManager(QtGui.QMainWindow):
 			print(items)
 			result = QtGui.QMessageBox.question(self, self.tr("Public/Private?"), 
 			                                    self.tr(("Are the files you are pasting"
-			                                             " public or private?")), 
+			                                             " public (no) or private (yes)?")), 
 			                                    buttons=QtGui.QMessageBox.Yes | \
 			                                    QtGui.QMessageBox.No | \
 			                                    QtGui.QMessageBox.Cancel)
